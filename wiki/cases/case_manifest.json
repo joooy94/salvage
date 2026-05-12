@@ -1,0 +1,195 @@
+[
+  {
+    "case_no": "01",
+    "title": "长庆油田SH一108井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      44,
+      45,
+      46
+    ],
+    "start_marker": "例一长庆油田SH一108井",
+    "end_marker": "例二华北油田LG一4井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例01_长庆油田SH一108井.md"
+  },
+  {
+    "case_no": "02",
+    "title": "华北油田LG一4井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      46
+    ],
+    "start_marker": "例二华北油田LG一4井",
+    "end_marker": "例三大港油田 GSH-23-1井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例02_华北油田LG一4井.md"
+  },
+  {
+    "case_no": "03",
+    "title": "大港油田_GSH-23-1井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      46,
+      47
+    ],
+    "start_marker": "例三大港油田 GSH-23-1井",
+    "end_marker": "例四华北油田G一13井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例03_大港油田_GSH-23-1井.md"
+  },
+  {
+    "case_no": "04",
+    "title": "华北油田G一13井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      47,
+      48
+    ],
+    "start_marker": "例四华北油田G一13井",
+    "end_marker": "例五华北油田Z-86-1井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例04_华北油田G一13井.md"
+  },
+  {
+    "case_no": "05",
+    "title": "华北油田Z-86-1井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      48,
+      49
+    ],
+    "start_marker": "例五华北油田Z-86-1井",
+    "end_marker": "例六胜利油田SC一1井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例05_华北油田Z-86-1井.md"
+  },
+  {
+    "case_no": "06",
+    "title": "胜利油田SC一1井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      49,
+      50
+    ],
+    "start_marker": "例六胜利油田SC一1井",
+    "end_marker": "例七长庆油田SH一93井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例06_胜利油田SC一1井.md"
+  },
+  {
+    "case_no": "07",
+    "title": "长庆油田SH一93井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      50
+    ],
+    "start_marker": "例七长庆油田SH一93井",
+    "end_marker": "例八华北油田J-20井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例07_长庆油田SH一93井.md"
+  },
+  {
+    "case_no": "08",
+    "title": "华北油田J-20井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      50,
+      51
+    ],
+    "start_marker": "例八华北油田J-20井",
+    "end_marker": "例九长庆油田SH一75井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例08_华北油田J-20井.md"
+  },
+  {
+    "case_no": "09",
+    "title": "长庆油田SH一75井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      51,
+      52
+    ],
+    "start_marker": "例九长庆油田SH一75井",
+    "end_marker": "例十河南油田T一487井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例09_长庆油田SH一75井.md"
+  },
+  {
+    "case_no": "10",
+    "title": "河南油田T一487井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      52,
+      53
+    ],
+    "start_marker": "例十河南油田T一487井",
+    "end_marker": "例十一胜利油田C一119井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例10_河南油田T一487井.md"
+  },
+  {
+    "case_no": "11",
+    "title": "胜利油田C一119井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      53
+    ],
+    "start_marker": "例十一胜利油田C一119井",
+    "end_marker": "例十二胜利油田G一3井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例11_胜利油田C一119井.md"
+  },
+  {
+    "case_no": "12",
+    "title": "胜利油田G一3井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      53,
+      54
+    ],
+    "start_marker": "例十二胜利油田G一3井",
+    "end_marker": "例十三塔里木油田LN一33井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例12_胜利油田G一3井.md"
+  },
+  {
+    "case_no": "13",
+    "title": "塔里木油田LN一33井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      54,
+      55
+    ],
+    "start_marker": "例十三塔里木油田LN一33井",
+    "end_marker": "例十四华北油田Y-29-2井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例13_塔里木油田LN一33井.md"
+  },
+  {
+    "case_no": "14",
+    "title": "华北油田Y-29-2井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      55,
+      56
+    ],
+    "start_marker": "例十四华北油田Y-29-2井",
+    "end_marker": "例十五辽河油田SH125井",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例14_华北油田Y-29-2井.md"
+  },
+  {
+    "case_no": "15",
+    "title": "辽河油田SH125井",
+    "source_pdf": "钻具断落事故.pdf",
+    "source_pages": [
+      56,
+      57
+    ],
+    "start_marker": "例十五辽河油田SH125井",
+    "end_marker": "文档结束",
+    "confidence": 0.9,
+    "wiki_file": "wiki/cases/案例15_辽河油田SH125井.md"
+  }
+]

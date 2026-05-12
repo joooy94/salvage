@@ -1,0 +1,648 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: var(--color-background-tertiary); }
+
+.shell {
+  display: grid;
+  grid-template-rows: 44px 1fr;
+  grid-template-columns: 220px 1fr 300px;
+  height: 640px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  background: var(--color-background-primary);
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  background: var(--color-background-primary);
+}
+
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #639922; display: inline-block;
+}
+.status-label { font-size: 12px; color: var(--color-text-secondary); }
+
+.topbar-btn {
+  font-size: 12px; color: var(--color-text-secondary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 4px 10px; cursor: pointer; background: transparent;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.sidebar {
+  border-right: 0.5px solid var(--color-border-tertiary);
+  display: flex; flex-direction: column;
+  background: var(--color-background-secondary);
+  overflow: hidden;
+}
+
+.tab-bar {
+  display: flex;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  flex-shrink: 0;
+}
+.tab {
+  flex: 1; text-align: center; padding: 8px 0;
+  font-size: 12px; cursor: pointer;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid transparent;
+}
+.tab.active {
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.sidebar-content { flex: 1; overflow-y: auto; padding: 8px; }
+
+.sidebar-section { margin-bottom: 16px; }
+.sidebar-section-title {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-text-tertiary);
+  padding: 0 6px 6px;
+}
+
+.sidebar-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: var(--border-radius-md);
+  font-size: 13px; color: var(--color-text-secondary);
+  cursor: pointer;
+}
+.sidebar-item:hover { background: var(--color-background-primary); color: var(--color-text-primary); }
+.sidebar-item.active { background: var(--color-background-primary); color: var(--color-text-primary); }
+.sidebar-item i { font-size: 14px; flex-shrink: 0; }
+
+.sidebar-item .item-badge {
+  margin-left: auto; font-size: 10px; padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+}
+
+.sidebar-new-btn {
+  display: flex; align-items: center; gap: 6px;
+  width: 100%; padding: 7px 8px;
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  font-size: 13px; color: var(--color-text-primary);
+  cursor: pointer; margin-bottom: 12px;
+}
+
+.sidebar-search {
+  display: flex; align-items: center; gap: 6px;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 5px 8px; margin-bottom: 8px;
+  background: var(--color-background-primary);
+}
+.sidebar-search input {
+  border: none; outline: none; font-size: 12px;
+  background: transparent; color: var(--color-text-primary);
+  width: 100%;
+}
+.sidebar-search i { font-size: 13px; color: var(--color-text-tertiary); }
+
+.wiki-tree-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border-radius: var(--border-radius-md);
+  font-size: 12px; color: var(--color-text-secondary); cursor: pointer;
+}
+.wiki-tree-item:hover { background: var(--color-background-primary); }
+.wiki-tree-item.group { font-weight: 500; color: var(--color-text-primary); margin-top: 4px; }
+.wiki-tree-item.child { padding-left: 22px; }
+
+.main {
+  display: flex; flex-direction: column;
+  overflow: hidden; background: var(--color-background-primary);
+}
+
+.chat-area {
+  flex: 1; overflow-y: auto;
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.chat-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  color: var(--color-text-tertiary);
+}
+.chat-empty-title { font-size: 15px; font-weight: 500; color: var(--color-text-secondary); }
+.chat-empty-sub { font-size: 13px; text-align: center; max-width: 320px; line-height: 1.6; }
+
+.msg { display: flex; flex-direction: column; gap: 4px; }
+.msg-user { align-items: flex-end; }
+.msg-bubble {
+  max-width: 72%; padding: 10px 14px;
+  border-radius: var(--border-radius-lg);
+  font-size: 14px; line-height: 1.6;
+}
+.msg-user .msg-bubble {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border-bottom-right-radius: 4px;
+  border: 0.5px solid var(--color-border-tertiary);
+}
+
+.agent-step {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.agent-step-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--color-text-secondary);
+}
+.agent-tag {
+  font-size: 11px; padding: 2px 8px; border-radius: 99px;
+  font-weight: 500; border: 0.5px solid;
+}
+.tag-parse { background: var(--color-background-info); color: var(--color-text-info); border-color: transparent; }
+.tag-match { background: var(--color-background-success); color: var(--color-text-success); border-color: transparent; }
+.tag-plan { background: var(--color-background-warning); color: var(--color-text-warning); border-color: transparent; }
+.tag-check { background: var(--color-background-danger); color: var(--color-text-danger); border-color: transparent; }
+.tag-final { background: var(--color-background-primary); color: var(--color-text-primary); border-color: var(--color-border-secondary); }
+
+.agent-card {
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+}
+.agent-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--color-background-secondary);
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.agent-card-title { font-size: 13px; font-weight: 500; }
+.agent-card-body { padding: 12px; font-size: 13px; line-height: 1.7; color: var(--color-text-secondary); }
+
+.cite {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; padding: 1px 6px; border-radius: 99px;
+  background: var(--color-background-info);
+  color: var(--color-text-info);
+  cursor: pointer; margin: 0 2px;
+}
+
+.composer {
+  border-top: 0.5px solid var(--color-border-tertiary);
+  padding: 12px 16px;
+  background: var(--color-background-primary);
+  flex-shrink: 0;
+}
+.composer-box {
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-lg);
+  padding: 10px 12px;
+}
+.composer-textarea {
+  width: 100%; border: none; outline: none; resize: none;
+  font-size: 14px; background: transparent;
+  color: var(--color-text-primary); font-family: var(--font-sans);
+  line-height: 1.6;
+  min-height: 56px;
+}
+.composer-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 8px;
+}
+.composer-hints { font-size: 11px; color: var(--color-text-tertiary); }
+.composer-send {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 14px; border-radius: var(--border-radius-md);
+  background: var(--color-text-primary); color: var(--color-background-primary);
+  border: none; font-size: 13px; cursor: pointer;
+}
+
+.evidence {
+  border-left: 0.5px solid var(--color-border-tertiary);
+  display: flex; flex-direction: column;
+  background: var(--color-background-secondary);
+  overflow: hidden;
+}
+
+.evidence-header {
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  font-size: 13px; font-weight: 500; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.evidence-body { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+.ev-section-title {
+  font-size: 11px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--color-text-tertiary); margin-bottom: 6px;
+}
+
+.ev-card {
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 8px 10px;
+}
+.ev-card-title { font-size: 12px; font-weight: 500; margin-bottom: 4px; }
+.ev-card-meta { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 6px; }
+.ev-card-body { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+
+.ev-field-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 8px; padding: 4px 0;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+}
+.ev-field-row:last-child { border-bottom: none; }
+.ev-field-label { font-size: 12px; color: var(--color-text-tertiary); flex-shrink: 0; }
+.ev-field-value { font-size: 12px; color: var(--color-text-primary); text-align: right; }
+.ev-field-missing {
+  font-size: 11px; color: var(--color-text-warning);
+  background: var(--color-background-warning);
+  padding: 1px 6px; border-radius: 99px;
+}
+
+.risk-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; padding: 4px 0;
+}
+.risk-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.risk-high { background: #E24B4A; }
+.risk-med  { background: #EF9F27; }
+.risk-low  { background: #639922; }
+
+.progress-bar-wrap { margin: 4px 0 8px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 4px; }
+.progress-track { height: 4px; background: var(--color-border-tertiary); border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 99px; background: #1D9E75; }
+
+.tabs-small { display: flex; gap: 4px; margin-bottom: 10px; }
+.tab-small {
+  font-size: 11px; padding: 3px 10px;
+  border-radius: 99px; cursor: pointer;
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-tertiary);
+  color: var(--color-text-secondary);
+}
+.tab-small.active {
+  background: var(--color-text-primary);
+  color: var(--color-background-primary);
+  border-color: transparent;
+}
+
+.wiki-pane {
+  display: none; flex-direction: column;
+  padding: 0; overflow: hidden;
+}
+.wiki-pane.visible { display: flex; }
+.wiki-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--color-border-tertiary);
+  flex-shrink: 0;
+}
+.wiki-header-back { font-size: 20px; cursor: pointer; color: var(--color-text-secondary); }
+.wiki-header-title { font-size: 14px; font-weight: 500; }
+.wiki-body { flex: 1; overflow-y: auto; padding: 16px 20px; font-size: 13px; line-height: 1.8; color: var(--color-text-secondary); }
+.wiki-body h2 { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 16px 0 6px; }
+.wiki-body h3 { font-size: 13px; font-weight: 500; color: var(--color-text-primary); margin: 12px 0 4px; }
+.wiki-body blockquote {
+  border-left: 3px solid var(--color-border-secondary);
+  padding: 4px 10px; margin: 8px 0;
+  color: var(--color-text-tertiary); font-size: 12px;
+}
+.wiki-meta {
+  font-size: 11px; color: var(--color-text-tertiary);
+  border: 0.5px solid var(--color-border-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 6px 10px; margin-bottom: 12px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+</style>
+
+<h2 class="sr-only">钻具落断事故处置系统 — UI布局设计稿</h2>
+
+<div class="shell">
+
+  <!-- 顶部栏 -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <i class="ti ti-tool" style="font-size:16px; color:var(--color-text-secondary)" aria-hidden="true"></i>
+      <span class="topbar-title">钻具落断事故处置系统</span>
+      <span style="color:var(--color-border-secondary)">|</span>
+      <span class="status-dot"></span>
+      <span class="status-label">Wiki 健康 · 15 案例 · 3 行标</span>
+    </div>
+    <div class="topbar-right">
+      <button class="topbar-btn" aria-label="新建会话"><i class="ti ti-plus" aria-hidden="true"></i>新建会话</button>
+      <button class="topbar-btn" aria-label="导出方案"><i class="ti ti-download" aria-hidden="true"></i>导出</button>
+    </div>
+  </div>
+
+  <!-- 左侧导航 -->
+  <div class="sidebar">
+    <div class="tab-bar">
+      <div class="tab active" id="tab-session">会话</div>
+      <div class="tab" id="tab-wiki">Wiki</div>
+    </div>
+
+    <!-- 会话面板 -->
+    <div class="sidebar-content" id="panel-session">
+      <button class="sidebar-new-btn"><i class="ti ti-plus" style="font-size:14px" aria-hidden="true"></i>新建事故分析</button>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">最近会话</div>
+        <div class="sidebar-item active">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">XX-1井钻具断落</span>
+          <span class="item-badge">进行中</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">SY102-5H水平井卡钻</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="ti ti-file-text" aria-hidden="true"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">某定向井落鱼处置</span>
+        </div>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">已归档方案</div>
+        <div class="sidebar-item">
+          <i class="ti ti-archive" aria-hidden="true"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">处置方案_20250312</span>
+        </div>
+        <div class="sidebar-item">
+          <i class="ti ti-archive" aria-hidden="true"></i>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">处置方案_20250228</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Wiki面板（隐藏） -->
+    <div class="sidebar-content" id="panel-wiki" style="display:none">
+      <div class="sidebar-search">
+        <i class="ti ti-search" aria-hidden="true"></i>
+        <input type="text" placeholder="搜索 Wiki 页面..." />
+      </div>
+      <div class="wiki-tree-item group"><i class="ti ti-book" style="font-size:13px" aria-hidden="true"></i>行业标准</div>
+      <div class="wiki-tree-item child" id="wiki-link-1"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>打捞工具目录</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>解卡操作规程</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>水平井特殊工艺</div>
+      <div class="wiki-tree-item group" style="margin-top:8px"><i class="ti ti-database" style="font-size:13px" aria-hidden="true"></i>案例库 (15)</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>案例01_XX井</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>案例02_YY井</div>
+      <div class="wiki-tree-item child" style="color:var(--color-text-tertiary);font-style:italic">… 共15个</div>
+      <div class="wiki-tree-item group" style="margin-top:8px"><i class="ti ti-chart-dots" style="font-size:13px" aria-hidden="true"></i>综合分析</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>工具选型决策树</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>风险评估矩阵</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>常见失败原因</div>
+      <div class="wiki-tree-item group" style="margin-top:8px"><i class="ti ti-folder" style="font-size:13px" aria-hidden="true"></i>生成方案</div>
+      <div class="wiki-tree-item child"><i class="ti ti-file" style="font-size:12px" aria-hidden="true"></i>处置方案_20250312</div>
+    </div>
+  </div>
+
+  <!-- 中间聊天区 -->
+  <div class="main" id="main-chat">
+    <div class="chat-area">
+      <!-- 用户消息 -->
+      <div class="msg msg-user">
+        <div class="msg-bubble">
+          某井钻进至3240m时，钻具发生断落，落鱼为5寸钻杆约180m，鱼顶深度3060m，目前井液密度1.35g/cm³，已尝试上提未能活动，请给出处置方案。
+        </div>
+        <div style="font-size:11px;color:var(--color-text-tertiary);margin-right:4px">2025-03-12 14:32</div>
+      </div>
+
+      <!-- Agent: 事故解析 -->
+      <div class="agent-step">
+        <div class="agent-step-header">
+          <span class="agent-tag tag-parse">事故解析</span>
+          <span>已识别结构化信息</span>
+        </div>
+        <div class="agent-card">
+          <div class="agent-card-head">
+            <span class="agent-card-title">事故信息提取</span>
+            <span style="font-size:11px;color:var(--color-text-success)"><i class="ti ti-check" aria-hidden="true"></i> 完成</span>
+          </div>
+          <div class="agent-card-body">
+            井型：直井 · 深度：3240m · 落鱼：5寸钻杆 180m · 鱼顶深度：3060m · 钻井液密度：1.35 g/cm³<br>
+            <span style="color:var(--color-text-warning);font-size:12px;margin-top:4px;display:inline-block">
+              <i class="ti ti-alert-triangle" style="font-size:12px" aria-hidden="true"></i>
+              缺失：地层岩性、井斜角、钻具扣型
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent: 案例匹配 -->
+      <div class="agent-step">
+        <div class="agent-step-header">
+          <span class="agent-tag tag-match">案例匹配</span>
+          <span>找到 2 个相似案例</span>
+        </div>
+        <div class="agent-card">
+          <div class="agent-card-head">
+            <span class="agent-card-title">历史案例参考</span>
+            <span style="font-size:11px;color:var(--color-text-success)"><i class="ti ti-check" aria-hidden="true"></i> 完成</span>
+          </div>
+          <div class="agent-card-body">
+            <span class="cite" id="case-cite-1"><i class="ti ti-link" style="font-size:10px" aria-hidden="true"></i>案例03</span> 直井5寸钻杆断落，深度相近，最终公锥打捞成功，耗时38h<br>
+            <span class="cite"><i class="ti ti-link" style="font-size:10px" aria-hidden="true"></i>案例07</span> 类似落鱼，套铣后打捞，关键：先循环洗井再下捞矛
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent: 方案生成 -->
+      <div class="agent-step">
+        <div class="agent-step-header">
+          <span class="agent-tag tag-plan">方案生成</span>
+          <span>激进 + 保守双方案 · 合规审核通过</span>
+        </div>
+        <div class="agent-card">
+          <div class="agent-card-head">
+            <span class="agent-card-title"><i class="ti ti-file-check" style="font-size:13px" aria-hidden="true"></i> 最终处置方案</span>
+            <span style="font-size:11px;color:var(--color-text-secondary)">置信度 78%</span>
+          </div>
+          <div class="agent-card-body">
+            <strong style="font-size:13px">推荐策略：</strong>阶梯式保守打捞<br><br>
+            <strong>第一阶段：</strong>循环洗井，清除沉砂（参照 <span class="cite"><i class="ti ti-link" style="font-size:10px" aria-hidden="true"></i>解卡操作规程 §4.2</span>）<br>
+            <strong>第二阶段：</strong>泡解卡剂 4-6h，二次尝试活动（参照 <span class="cite"><i class="ti ti-link" style="font-size:10px" aria-hidden="true"></i>解卡操作规程 §5.1</span>）<br>
+            <strong>第三阶段：</strong>下捞矛或公锥打捞，工具选型见右侧面板<br>
+            <span style="font-size:11px;color:var(--color-text-warning)"><i class="ti ti-alert-triangle" style="font-size:11px" aria-hidden="true"></i> 上提力参数需结合钻具强度与现场条件确认，本方案未给出具体数值</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 输入框 -->
+    <div class="composer">
+      <div class="composer-box">
+        <textarea class="composer-textarea" placeholder="补充现场信息，或询问处置细节…" rows="2"></textarea>
+        <div class="composer-footer">
+          <span class="composer-hints">可补充：地层岩性 · 钻具扣型 · 井斜角</span>
+          <button class="composer-send" aria-label="发送">
+            <i class="ti ti-send" style="font-size:13px" aria-hidden="true"></i>发送
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wiki 阅读视图（点击引用后展示，默认隐藏） -->
+  <div class="main wiki-pane" id="main-wiki">
+    <div class="wiki-header">
+      <span class="wiki-header-back" id="wiki-back" title="返回">&#8592;</span>
+      <span class="wiki-header-title">解卡操作规程</span>
+    </div>
+    <div class="wiki-body">
+      <div class="wiki-meta">
+        <span>来源：SY_T 5587.12-2018</span>
+        <span>更新：2025-03-01 · 关联案例：案例03、案例07</span>
+      </div>
+      <h2>适用范围</h2>
+      <p>适用于常规修井作业中的解卡和打捞操作，包括卡钻、落鱼的各类处置规程。</p>
+      <h2>§4.2 循环洗井要求</h2>
+      <blockquote>原文：循环洗井应以不低于额定排量的70%持续进行，直至出口返砂量小于…</blockquote>
+      提炼：洗井排量要足，以出口返砂量作为判断标准，不得以时间替代。
+      <h2>§5.1 解卡剂使用规程</h2>
+      <p>泡解卡剂有效时间一般为4-8h，浸泡期间应每隔1h尝试活动钻具…</p>
+    </div>
+  </div>
+
+  <!-- 右侧依据面板 -->
+  <div class="evidence">
+    <div class="evidence-header">
+      <span>分析依据</span>
+      <span style="font-size:11px;color:var(--color-text-tertiary)">本次引用 5 页</span>
+    </div>
+    <div class="evidence-body">
+
+      <!-- 事故结构化 -->
+      <div>
+        <div class="ev-section-title">事故结构化</div>
+        <div class="ev-card">
+          <div class="ev-field-row">
+            <span class="ev-field-label">井型</span>
+            <span class="ev-field-value">直井</span>
+          </div>
+          <div class="ev-field-row">
+            <span class="ev-field-label">落鱼类型</span>
+            <span class="ev-field-value">5寸钻杆 180m</span>
+          </div>
+          <div class="ev-field-row">
+            <span class="ev-field-label">鱼顶深度</span>
+            <span class="ev-field-value">3060 m</span>
+          </div>
+          <div class="ev-field-row">
+            <span class="ev-field-label">井液密度</span>
+            <span class="ev-field-value">1.35 g/cm³</span>
+          </div>
+          <div class="ev-field-row">
+            <span class="ev-field-label">扣型</span>
+            <span class="ev-field-missing">未提供</span>
+          </div>
+          <div class="ev-field-row">
+            <span class="ev-field-label">井斜角</span>
+            <span class="ev-field-missing">未提供</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 方案置信度 -->
+      <div>
+        <div class="ev-section-title">方案置信度</div>
+        <div class="ev-card">
+          <div class="progress-bar-wrap">
+            <div class="progress-label"><span>综合置信度</span><span>78%</span></div>
+            <div class="progress-track"><div class="progress-fill" style="width:78%"></div></div>
+          </div>
+          <div style="font-size:11px;color:var(--color-text-tertiary)">缺失扣型和井斜角导致工具选型存在不确定性</div>
+        </div>
+      </div>
+
+      <!-- 引用来源 -->
+      <div>
+        <div class="ev-section-title">引用来源</div>
+        <div class="tabs-small">
+          <div class="tab-small active">标准</div>
+          <div class="tab-small">案例</div>
+          <div class="tab-small">推断</div>
+        </div>
+        <div class="ev-card" style="margin-bottom:6px">
+          <div class="ev-card-title">解卡操作规程 §4.2</div>
+          <div class="ev-card-meta">SY_T 5587.12-2018 · 第12页</div>
+          <div class="ev-card-body">循环洗井标准要求</div>
+        </div>
+        <div class="ev-card">
+          <div class="ev-card-title">解卡操作规程 §5.1</div>
+          <div class="ev-card-meta">SY_T 5587.12-2018 · 第15页</div>
+          <div class="ev-card-body">解卡剂使用浸泡规程</div>
+        </div>
+      </div>
+
+      <!-- 风险提示 -->
+      <div>
+        <div class="ev-section-title">风险提示</div>
+        <div class="ev-card">
+          <div class="risk-row"><span class="risk-dot risk-high"></span><span>扣型未知，捞矛规格需现场确认</span></div>
+          <div class="risk-row"><span class="risk-dot risk-med"></span><span>上提力参数不可盲目照搬历史案例</span></div>
+          <div class="risk-row"><span class="risk-dot risk-low"></span><span>洗井排量充足可减少沉砂风险</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+const tabSession = document.getElementById('tab-session');
+const tabWiki = document.getElementById('tab-wiki');
+const panelSession = document.getElementById('panel-session');
+const panelWiki = document.getElementById('panel-wiki');
+
+tabSession.addEventListener('click', () => {
+  tabSession.classList.add('active'); tabWiki.classList.remove('active');
+  panelSession.style.display = 'block'; panelWiki.style.display = 'none';
+});
+tabWiki.addEventListener('click', () => {
+  tabWiki.classList.add('active'); tabSession.classList.remove('active');
+  panelWiki.style.display = 'block'; panelSession.style.display = 'none';
+});
+
+const mainChat = document.getElementById('main-chat');
+const mainWiki = document.getElementById('main-wiki');
+const wikiBack = document.getElementById('wiki-back');
+
+function showWiki() {
+  mainChat.style.display = 'none';
+  mainWiki.classList.add('visible');
+}
+function showChat() {
+  mainWiki.classList.remove('visible');
+  mainChat.style.display = 'flex';
+}
+
+document.querySelectorAll('.cite').forEach(el => {
+  el.addEventListener('click', showWiki);
+});
+document.getElementById('wiki-link-1').addEventListener('click', showWiki);
+wikiBack.addEventListener('click', showChat);
+
+const tabsSmall = document.querySelectorAll('.tab-small');
+tabsSmall.forEach(t => {
+  t.addEventListener('click', () => {
+    tabsSmall.forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+</script>
