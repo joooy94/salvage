@@ -11,6 +11,7 @@ type LLMSettingsDialogProps = {
 const providerDefaults: Record<string, { model: string; base_url: string }> = {
   openai: { model: "gpt-4o-mini", base_url: "" },
   anthropic: { model: "claude-3-5-sonnet-latest", base_url: "" },
+  zai: { model: "glm-5.1", base_url: "https://api.z.ai/api/paas/v4/" },
   custom: { model: "", base_url: "" },
 };
 
@@ -83,13 +84,14 @@ function LLMSettingsDialog({ config, open, onClose, onSave }: LLMSettingsDialogP
             <select value={provider} onChange={(event) => handleProviderChange(event.target.value)}>
               <option value="openai">OpenAI</option>
               <option value="anthropic">Anthropic</option>
+              <option value="zai">Z.ai</option>
               <option value="custom">OpenAI 兼容接口</option>
             </select>
           </label>
 
           <label className="form-field">
             <span>模型</span>
-            <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="例如 gpt-4o-mini / claude-3-5-sonnet-latest" />
+            <input value={model} onChange={(event) => setModel(event.target.value)} placeholder="例如 gpt-4o-mini / claude-3-5-sonnet-latest / glm-5.1" />
           </label>
 
           <label className="form-field">

@@ -56,6 +56,9 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "accident": result.get("accident"),
                 "confidence_score": result.get("confidence_score"),
+                "llm_enabled": result.get("llm_enabled"),
+                "llm_provider": result.get("llm_provider"),
+                "llm_fallback_reason": result.get("llm_fallback_reason"),
                 "output_path": result.get("output_path"),
                 "final_plan": result.get("final_plan"),
                 "evidence": result.get("evidence", []),
@@ -72,6 +75,9 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "answer": result.get("final_plan"),
                 "confidence_score": result.get("confidence_score"),
+                "llm_enabled": result.get("llm_enabled"),
+                "llm_provider": result.get("llm_provider"),
+                "llm_fallback_reason": result.get("llm_fallback_reason"),
                 "evidence": result.get("evidence", []),
                 "wiki_pages_used": result.get("wiki_pages_used", []),
             }

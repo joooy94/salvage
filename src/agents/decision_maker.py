@@ -6,6 +6,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
+try:
+    from src.llm_client import try_complete_text
+except Exception:
+    try_complete_text = None
+
 
 def decision_maker_node(state: Dict[str, Any]) -> Dict[str, Any]:
     accident = state.get("accident", {})
@@ -65,6 +70,7 @@ def decision_maker_node(state: Dict[str, Any]) -> Dict[str, Any]:
             "- 生成方案不得自动写入真实案例库。",
         ]
     )
+    final = _llm_refine_final(final, state)
 
     return {**state, "final_plan": final, "wiki_pages_used": wiki_pages}
 
@@ -131,6 +137,36 @@ def _strip_leading_heading(markdown: str, heading: str) -> str:
     if lines and lines[0].strip() == f"## {heading}":
         return "\n".join(lines[1:]).lstrip()
     return markdown
+
+
+def _llm_refine_final(draft: str, state: Dict[str, Any]) -> str:
+    if try_complete_text is None:
+        return draft
+    prompt = f"""请对下面的最终处置方案做一次工程化审校和整合，输出完整 Markdown。
+
+硬性要求：
+1. 保留一级标题“# 钻具落断事故处置方案”。
+2. 保留事故概况、关键不确定信息、分阶段处置、合规审核、关键引用摘录、参考依据、风险提示。
+3. 不得新增未给出的现场参数，不得删除引用依据。
+4. 如证据不足，必须降级为待确认或工程推断。
+5. 生成方案不得写入真实案例库这一限制必须保留。
+
+事故信息：
+{state.get("accident", {})}
+
+草稿：
+{draft}
+"""
+    refined = try_complete_text(
+        prompt,
+        system="你是钻具落断事故处置方案总审，负责把专家输出整合为可执行、可追溯的最终方案。",
+        outputs_dir=state.get("outputs_dir") or "outputs",
+        temperature=0.15,
+        max_tokens=2600,
+    )
+    if refined and "# 钻具落断事故处置方案" in refined:
+        return refined
+    return draft
 
 
 def output_archiver_node(state: Dict[str, Any]) -> Dict[str, Any]:

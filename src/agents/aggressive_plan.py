@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 try:
     from src.wiki_loader import search_wiki_snippets
 except Exception:
     search_wiki_snippets = None
+
+try:
+    from src.llm_client import try_complete_text
+except Exception:
+    try_complete_text = None
 
 
 def aggressive_plan_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -57,4 +63,52 @@ def aggressive_plan_node(state: Dict[str, Any]) -> Dict[str, Any]:
             *[item for item in citations if item],
         ]
     )
+    plan = _llm_refine_plan(plan, {**state, "evidence": evidence})
     return {**state, "aggressive_plan": plan, "evidence": evidence}
+
+
+def _llm_refine_plan(draft: str, state: Dict[str, Any]) -> str:
+    if try_complete_text is None or not _intermediate_refine_enabled():
+        return draft
+    evidence = _evidence_context(state.get("evidence", []))
+    prompt = f"""请基于事故信息和证据，把下面的激进处置方案改写为更具体、可执行的 Markdown。
+
+硬性要求：
+1. 保留“## 激进方案”标题。
+2. 不得编造扭矩、拉力、震击参数；没有依据时写“需结合钻具强度、井况和现场设计确认”。
+3. 每个关键动作要引用 Wiki 页面名或标注“工程推断”。
+4. 不得删除缺失信息和转入保守路径条件。
+
+事故信息：
+{state.get("accident", {})}
+
+可用证据：
+{evidence}
+
+草稿：
+{draft}
+"""
+    refined = try_complete_text(
+        prompt,
+        system="你是钻具落断事故处置专家，输出必须可追溯、保守合规。",
+        outputs_dir=state.get("outputs_dir") or "outputs",
+        temperature=0.2,
+        max_tokens=1800,
+    )
+    if refined and "## 激进方案" in refined:
+        return refined
+    return draft
+
+
+def _intermediate_refine_enabled() -> bool:
+    return os.getenv("LLM_REFINE_INTERMEDIATE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _evidence_context(evidence: list[Dict[str, Any]], limit: int = 8) -> str:
+    lines = []
+    for item in evidence[:limit]:
+        page = item.get("source_page") or ""
+        summary = item.get("summary") or item.get("quote") or ""
+        if page or summary:
+            lines.append(f"- {page}：{summary}")
+    return "\n".join(lines) or "暂无可用证据。"

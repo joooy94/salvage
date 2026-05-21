@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, AgentPhase, AccidentFields, EvidenceItem, HealthStatus, LLMConfig, LLMConfigPayload, SessionSummary, SolveResponse, WikiPage } from "./api";
+import { api, AgentPhase, AccidentFields, DispositionGraph, EvidenceItem, HealthStatus, LLMConfig, LLMConfigPayload, PlanVersion, SessionSummary, SolveResponse, WikiPage } from "./api";
 import Shell from "./components/Shell";
 
 const sampleWikiPages: WikiPage[] = [
@@ -139,20 +139,24 @@ function App() {
   const [wikiPages, setWikiPages] = useState<WikiPage[]>(sampleWikiPages);
   const [activeWikiPage, setActiveWikiPage] = useState<WikiPage | null>(null);
   const [view, setView] = useState<"chat" | "wiki">("chat");
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "m1",
-      role: "user",
-      content: "某井钻进至3240m时，钻具发生断落，落鱼为5寸钻杆约180m，鱼顶深度3060m，目前井液密度1.35g/cm3，已尝试上提未能活动，请给出处置方案。",
-      createdAt: "2025-03-12 14:32",
-    },
-  ]);
-  const [phases, setPhases] = useState<AgentPhase[]>(samplePhases);
-  const [accident, setAccident] = useState<AccidentFields>(sampleAccident);
-  const [evidence, setEvidence] = useState<EvidenceItem[]>(sampleEvidence);
-  const [confidence, setConfidence] = useState(0.78);
-  const [finalPlan, setFinalPlan] = useState(samplePlan);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [phases, setPhases] = useState<AgentPhase[]>([]);
+  const [accident, setAccident] = useState<AccidentFields>({});
+  const [dispositionGraph, setDispositionGraph] = useState<DispositionGraph | null>(null);
+  const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
+  const [confidence, setConfidence] = useState(0);
+  const [finalPlan, setFinalPlan] = useState("");
+  const [planVersions, setPlanVersions] = useState<PlanVersion[]>([]);
   const [isSolving, setIsSolving] = useState(false);
+  const [pendingMode, setPendingMode] = useState<"explain" | "solve" | null>(null);
+
+  const archivedPlans = useMemo(
+    () =>
+      wikiPages
+        .filter((page) => page.category === "generated_plans")
+        .sort((a, b) => b.title.localeCompare(a.title, "zh-CN")),
+    [wikiPages],
+  );
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => undefined);
@@ -171,9 +175,12 @@ function App() {
     setMessages([]);
     setPhases([]);
     setAccident({});
+    setDispositionGraph(null);
     setEvidence([]);
     setConfidence(0);
     setFinalPlan("");
+    setPlanVersions([]);
+    setPendingMode(null);
   }, []);
 
   const handleNewSession = useCallback(async () => {
@@ -194,8 +201,109 @@ function App() {
   }, [resetWorkspaceForSession]);
 
   const handleSelectSession = useCallback((session: SessionSummary) => {
-    resetWorkspaceForSession(session.id);
-  }, [resetWorkspaceForSession]);
+    setActiveSessionId(session.id);
+    setActiveWikiPage(null);
+    setView("chat");
+
+    if (session.final_plan || session.description) {
+      const restoredMessages = session.messages?.length
+        ? session.messages.map((message, index) => ({
+            id: `${session.id}-msg-${index}`,
+            role: message.role,
+            content: message.content,
+            createdAt: message.created_at ?? "",
+          }))
+        : [
+            ...(session.description
+              ? [
+                  {
+                    id: `${session.id}-user`,
+                    role: "user" as const,
+                    content: session.description,
+                    createdAt: session.created_at ?? "",
+                  },
+                ]
+              : []),
+            ...(session.final_plan
+              ? [
+                  {
+                    id: `${session.id}-assistant`,
+                    role: "assistant" as const,
+                    content: "已恢复该会话的处置方案结果。",
+                    createdAt: session.updated_at ?? session.created_at ?? "",
+                  },
+                ]
+              : []),
+          ];
+      setMessages(restoredMessages);
+      setAccident(session.accident ?? {});
+      setDispositionGraph(session.disposition_graph ?? null);
+      if (!session.disposition_graph && session.id && !session.id.startsWith("local-")) {
+        api.dispositionGraph(session.id).then(setDispositionGraph).catch(() => undefined);
+      }
+      setEvidence(session.evidence ?? []);
+      setPhases(session.final_plan ? buildPhasesFromResult(session) : []);
+      setConfidence(session.confidence_score ?? 0);
+      setFinalPlan(session.final_plan ?? "");
+      setPlanVersions(normalizePlanVersions(session));
+      return;
+    }
+
+    setMessages([
+      {
+        id: `${session.id}-empty`,
+        role: "assistant",
+        content: "该会话暂无分析结果，可以继续输入事故描述。",
+        createdAt: session.created_at ?? "",
+      },
+    ]);
+    setPhases([]);
+    setAccident({});
+    setDispositionGraph(null);
+    setEvidence([]);
+    setConfidence(0);
+    setFinalPlan("");
+    setPlanVersions([]);
+    setPendingMode(null);
+  }, []);
+
+  useEffect(() => {
+    if (!activeSessionId || messages.length || finalPlan) return;
+    const active = sessions.find((session) => session.id === activeSessionId);
+    if (active && (active.final_plan || active.description)) {
+      handleSelectSession(active);
+    }
+  }, [activeSessionId, finalPlan, handleSelectSession, messages.length, sessions]);
+
+  const handleDeleteSession = useCallback(async (session: SessionSummary) => {
+    const nextSessions = sessions.filter((item) => item.id !== session.id);
+    setSessions(nextSessions);
+    if (session.id === activeSessionId) {
+      resetWorkspaceForSession(nextSessions[0]?.id);
+    }
+    if (!session.id.startsWith("local-")) {
+      try {
+        await api.deleteSession(session.id);
+      } catch {
+        api.sessions().then(setSessions).catch(() => undefined);
+      }
+    }
+  }, [activeSessionId, resetWorkspaceForSession, sessions]);
+
+  const handleDeleteGeneratedPlan = useCallback(async (page: WikiPage) => {
+    setWikiPages((items) => items.filter((item) => item.path !== page.path));
+    if (activeWikiPage?.path === page.path) {
+      setActiveWikiPage(null);
+      setView("chat");
+    }
+    try {
+      await api.deleteGeneratedPlan(page.path);
+      const pages = await api.wikiPages();
+      setWikiPages(pages);
+    } catch {
+      api.wikiPages().then((pages) => pages.length && setWikiPages(pages)).catch(() => undefined);
+    }
+  }, [activeWikiPage]);
 
   const handleSaveLLMSettings = useCallback(async (payload: LLMConfigPayload) => {
     const saved = await api.saveLLMConfig(payload);
@@ -208,7 +316,7 @@ function App() {
     setActiveWikiPage(
       fallback ?? {
         path,
-        title: path.split("/").pop()?.replace(".md", "") ?? "Wiki 页面",
+        title: path.split("/").pop()?.replace(".md", "") ?? "知识库页面",
         content: "",
       },
     );
@@ -220,7 +328,7 @@ function App() {
       setActiveWikiPage((current) => ({
         ...(current ?? fallback),
         path,
-        title: (current ?? fallback)?.title ?? "Wiki 页面",
+        title: (current ?? fallback)?.title ?? "知识库页面",
         source_pdf: (current ?? fallback)?.source_pdf,
         content:
           (current ?? fallback)?.content ??
@@ -255,7 +363,7 @@ function App() {
     };
   }, [openWikiPage, wikiPages]);
 
-  const handleSubmit = async (description: string) => {
+  const handleSubmit = async (description: string, mode: "explain" | "solve") => {
     const userMessage: ChatMessage = {
       id: crypto.randomUUID(),
       role: "user",
@@ -264,6 +372,7 @@ function App() {
     };
     setMessages((items) => [...items, userMessage]);
     setIsSolving(true);
+    setPendingMode(mode);
 
     try {
       let sessionId = activeSessionId;
@@ -274,12 +383,117 @@ function App() {
         setSessions((items) => [session, ...items.filter((item) => item.id !== session.id)]);
         setActiveSessionId(session.id);
       }
+
+      const activeSessionSnapshot = sessions.find((item) => item.id === sessionId);
+      const savedFinalPlan = activeSessionSnapshot?.final_plan ?? "";
+      const hasExistingPlan = Boolean(finalPlan.trim() || savedFinalPlan.trim());
+
+      if (hasExistingPlan && sessionId) {
+        if (!finalPlan && savedFinalPlan) {
+          setFinalPlan(savedFinalPlan);
+          setAccident(activeSessionSnapshot?.accident ?? {});
+          setEvidence(activeSessionSnapshot?.evidence ?? []);
+          setPhases(activeSessionSnapshot ? buildPhasesFromResult(activeSessionSnapshot) : []);
+          setConfidence(activeSessionSnapshot?.confidence_score ?? 0);
+        }
+        const result = await api.chat(description, sessionId, mode);
+        const generatedVersion = result.plan_version ?? (planVersions.length ? planVersions.length + 1 : 2);
+        const assistantMessage: ChatMessage = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: result.plan_updated
+            ? `已生成处置方案 v${generatedVersion}。完整报告已更新到下方“方案版本”卡片，主流程辩论与合规审核见 Agent 阶段卡片。`
+            : result.answer,
+          createdAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        };
+        setMessages((items) => [...items, assistantMessage]);
+        if (result.plan_updated) {
+          setAccident(result.accident ?? activeSessionSnapshot?.accident ?? {});
+          setDispositionGraph(result.disposition_graph ?? activeSessionSnapshot?.disposition_graph ?? null);
+          setEvidence(result.evidence?.length ? result.evidence : activeSessionSnapshot?.evidence ?? []);
+          setPhases(result.phases?.length ? result.phases : buildPhasesFromResult(result));
+          setConfidence(result.confidence_score ?? activeSessionSnapshot?.confidence_score ?? 0);
+          const nextFinalPlan = result.final_plan || savedFinalPlan;
+          setFinalPlan(nextFinalPlan);
+          setPlanVersions((items) => appendPlanVersion(items, nextFinalPlan, result));
+          api.wikiPages().then((pages) => pages.length && setWikiPages(pages)).catch(() => undefined);
+        }
+        setSessions((items) =>
+          items.map((item) =>
+            item.id === sessionId
+              ? {
+                  ...item,
+                  updated_at: result.updated_at ?? new Date().toISOString(),
+                  accident: result.accident ?? item.accident,
+                  disposition_graph: result.disposition_graph ?? item.disposition_graph,
+                  parse_report: result.parse_report ?? item.parse_report,
+                  similar_cases: result.similar_cases ?? item.similar_cases,
+                  aggressive_plan: result.aggressive_plan ?? item.aggressive_plan,
+                  conservative_plan: result.conservative_plan ?? item.conservative_plan,
+                  compliance_report: result.compliance_report ?? item.compliance_report,
+                  final_plan: result.final_plan || item.final_plan,
+                  confidence_score: result.confidence_score ?? item.confidence_score,
+                  evidence: result.evidence ?? item.evidence,
+                  wiki_pages_used: result.wiki_pages_used ?? item.wiki_pages_used,
+                  output_path: result.output_path ?? item.output_path,
+                  generated_plan_path: result.generated_plan_path ?? item.generated_plan_path,
+                  current_plan_version: result.plan_version ?? item.current_plan_version,
+                  plan_versions: result.plan_updated && (result.final_plan || item.final_plan)
+                    ? appendPlanVersion(item.plan_versions ?? normalizePlanVersions(item), result.final_plan || item.final_plan || "", result)
+                    : item.plan_versions,
+                  phases: result.phases ?? item.phases,
+                  messages: [
+                    ...(item.messages ?? []),
+                    { role: "user", content: description, created_at: userMessage.createdAt },
+                    { role: "assistant", content: result.answer, created_at: assistantMessage.createdAt },
+                  ],
+                }
+              : item,
+          ),
+        );
+        api.sessions().then(setSessions).catch(() => undefined);
+        return;
+      }
+
+      setPhases(runningPhases());
+      setFinalPlan("");
       const result: SolveResponse = await api.solve(description, sessionId);
       setAccident(result.accident ?? sampleAccident);
+      setDispositionGraph(result.disposition_graph ?? null);
       setEvidence(result.evidence?.length ? result.evidence : sampleEvidence);
       setPhases(buildPhasesFromResult(result));
       setConfidence(result.confidence_score ?? 0.72);
       setFinalPlan(result.final_plan ?? samplePlan);
+      setPlanVersions([makePlanVersion(1, result.final_plan ?? samplePlan, result)]);
+      setSessions((items) =>
+        items.map((item) =>
+          item.id === sessionId
+            ? {
+                ...item,
+                title: item.title?.startsWith("新建事故会话") ? description.slice(0, 24) : item.title,
+                description,
+                updated_at: new Date().toISOString(),
+                accident: result.accident,
+                disposition_graph: result.disposition_graph,
+                parse_report: result.parse_report,
+                similar_cases: result.similar_cases,
+                aggressive_plan: result.aggressive_plan,
+                conservative_plan: result.conservative_plan,
+                compliance_report: result.compliance_report,
+                final_plan: result.final_plan,
+                confidence_score: result.confidence_score,
+                evidence: result.evidence,
+                wiki_pages_used: result.wiki_pages_used,
+                output_path: result.output_path,
+                generated_plan_path: result.generated_plan_path,
+                current_plan_version: result.plan_version ?? 1,
+                plan_versions: [makePlanVersion(result.plan_version ?? 1, result.final_plan ?? samplePlan, result)],
+              }
+            : item,
+        ),
+      );
+      api.sessions().then(setSessions).catch(() => undefined);
+      api.wikiPages().then((pages) => pages.length && setWikiPages(pages)).catch(() => undefined);
       setMessages((items) => [
         ...items,
         {
@@ -302,24 +516,29 @@ function App() {
       ]);
     } finally {
       setIsSolving(false);
+      setPendingMode(null);
     }
   };
 
   const statusLabel = useMemo(() => {
     const cases = health.cases_count ?? 15;
     const standards = health.standards_count ?? 3;
-    return health.wiki_ok === false ? "Wiki 待检查" : `Wiki 健康 · ${cases} 案例 · ${standards} 行标`;
+    return health.wiki_ok === false ? "知识库待检查" : `知识库正常 · ${cases} 案例 · ${standards} 行标`;
   }, [health]);
 
   return (
     <Shell
       activeSessionId={activeSessionId}
+      followUpMode={Boolean(finalPlan || (activeSessionId && sessions.find((session) => session.id === activeSessionId)?.final_plan))}
       accident={accident}
       activeWikiPage={activeWikiPage}
       confidence={confidence}
+      dispositionGraph={dispositionGraph}
       evidence={evidence}
       finalPlan={finalPlan}
+      planVersions={planVersions}
       isSolving={isSolving}
+      pendingMode={pendingMode}
       llmConfig={llmConfig}
       llmSettingsOpen={llmSettingsOpen}
       messages={messages}
@@ -328,11 +547,14 @@ function App() {
       onNewSession={handleNewSession}
       onOpenLLMSettings={() => setLLMSettingsOpen(true)}
       onOpenWiki={openWikiPage}
+      onDeleteSession={handleDeleteSession}
+      onDeleteGeneratedPlan={handleDeleteGeneratedPlan}
       onSaveLLMSettings={handleSaveLLMSettings}
       onSelectSession={handleSelectSession}
       onSubmit={handleSubmit}
       phases={phases}
       sessions={sessions}
+      archivedPlans={archivedPlans}
       statusLabel={statusLabel}
       view={view}
       wikiPages={wikiPages}
@@ -341,14 +563,27 @@ function App() {
 }
 
 function buildPhasesFromResult(result: SolveResponse): AgentPhase[] {
+  const parseSummary = result.parse_report?.trim() || accidentSummary(result.accident);
+  if (result.phases?.length) {
+    return result.phases.map((phase) =>
+      phase.id === "parse"
+        ? {
+            ...phase,
+            status: result.accident?.missing_fields?.length ? "warning" : phase.status,
+            summary: phase.summary?.trim() || parseSummary,
+            details: phase.details?.trim() || parseSummary,
+          }
+        : phase,
+    );
+  }
   return [
     {
       id: "parse",
       tag: "parse",
       title: "事故信息提取",
-      status: "done",
-      summary: result.parse_report ?? "已完成事故信息结构化。",
-      details: result.parse_report ?? "已完成事故信息结构化。",
+      status: result.accident?.missing_fields?.length ? "warning" : "done",
+      summary: parseSummary,
+      details: parseSummary,
     },
     {
       id: "match",
@@ -389,6 +624,106 @@ function buildPhasesFromResult(result: SolveResponse): AgentPhase[] {
       status: "done",
       summary: firstSentence(result.final_plan) || "已生成最终决策。",
       details: result.final_plan ?? "",
+    },
+  ];
+}
+
+function accidentSummary(accident?: AccidentFields): string {
+  if (!accident) return "未读取到结构化事故信息，需重新提交事故描述或检查事故解析节点。";
+  const rows: Array<[string, unknown]> = [
+    ["井型", accident.well_type],
+    ["鱼顶/事故深度", accident.fish_top_depth ?? accident.depth],
+    ["落鱼类型", accident.fish_type],
+    ["落鱼描述", accident.fish_description],
+    ["井液/钻井液", accident.mud_density ?? accident.mud_type],
+    ["扣型", accident.connection_type ?? accident.thread_type],
+    ["井斜角", accident.inclination],
+  ];
+  const lines = ["## 事故信息提取", ...rows.filter(([, value]) => value !== undefined && value !== null && value !== "").map(([label, value]) => `- ${label}：${String(value)}`)];
+  lines.push(`- 缺失信息：${accident.missing_fields?.length ? accident.missing_fields.join("、") : "暂无关键缺失项。"}`);
+  return lines.join("\n");
+}
+
+function normalizePlanVersions(session: Pick<SessionSummary, "plan_versions" | "final_plan" | "updated_at" | "confidence_score">): PlanVersion[] {
+  if (session.plan_versions?.length) {
+    return session.plan_versions.filter((item) => item.content).sort((a, b) => a.version - b.version);
+  }
+  return session.final_plan
+    ? [
+        {
+          version: 1,
+          title: "处置方案 v1",
+          content: session.final_plan,
+          created_at: session.updated_at,
+          confidence_score: session.confidence_score,
+        },
+      ]
+    : [];
+}
+
+function makePlanVersion(version: number, content: string, result: Partial<SolveResponse & { updated_at?: string }>): PlanVersion {
+  return {
+    version,
+    title: `处置方案 v${version}`,
+    content,
+    created_at: result.updated_at ?? new Date().toISOString(),
+    output_path: result.output_path,
+    generated_plan_path: result.generated_plan_path,
+    confidence_score: result.confidence_score,
+    mode: "solve",
+  };
+}
+
+function appendPlanVersion(items: PlanVersion[], content: string, result: Partial<SolveResponse & { updated_at?: string; plan_version?: number }>): PlanVersion[] {
+  if (!content) return items;
+  const version = result.plan_version && result.plan_version > 0 ? result.plan_version : items.length + 1;
+  if (items.some((item) => item.version === version && item.content === content)) return items;
+  return [...items, makePlanVersion(version, content, result)];
+}
+
+function runningPhases(): AgentPhase[] {
+  return [
+    {
+      id: "parse",
+      tag: "parse",
+      title: "事故信息提取",
+      status: "running",
+      summary: "正在抽取井型、深度、落鱼、井液密度和已采取措施。",
+    },
+    {
+      id: "match",
+      tag: "match",
+      title: "历史案例参考",
+      status: "pending",
+      summary: "等待事故结构化后匹配相似案例。",
+    },
+    {
+      id: "aggressive",
+      tag: "aggressive",
+      title: "激进方案",
+      status: "pending",
+      summary: "等待案例分析与标准证据。",
+    },
+    {
+      id: "conservative",
+      tag: "conservative",
+      title: "保守方案",
+      status: "pending",
+      summary: "等待案例分析与标准证据。",
+    },
+    {
+      id: "check",
+      tag: "check",
+      title: "合规审核",
+      status: "pending",
+      summary: "等待两套处置路径生成后审核。",
+    },
+    {
+      id: "final",
+      tag: "final",
+      title: "最终决策",
+      status: "pending",
+      summary: "等待综合决策。",
     },
   ];
 }

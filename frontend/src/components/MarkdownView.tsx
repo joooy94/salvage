@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { WikiPage } from "../api";
 
 type MarkdownViewProps = {
@@ -14,6 +15,7 @@ function MarkdownView({ className, content, onOpenWiki, wikiPages }: MarkdownVie
   return (
     <div className={className}>
       <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
         components={{
           a: ({ href, children }) => {
             if (href?.startsWith("#wiki/")) {

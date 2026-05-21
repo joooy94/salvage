@@ -1,4 +1,4 @@
-import { Archive, BookOpen, ChartNoAxesCombined, Database, FileText, Folder, Plus, Search } from "lucide-react";
+import { Archive, BookOpen, ChartNoAxesCombined, Database, FileText, Folder, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { SessionSummary, WikiPage } from "../api";
 
@@ -7,7 +7,10 @@ type SidebarProps = {
   onNewSession: () => void;
   wikiPages: WikiPage[];
   onOpenWiki: (page: WikiPage) => void;
+  onDeleteSession: (session: SessionSummary) => void;
+  onDeleteGeneratedPlan: (page: WikiPage) => void;
   onSelectSession: (session: SessionSummary) => void;
+  archivedPlans: WikiPage[];
   sessions: SessionSummary[];
 };
 
@@ -27,7 +30,7 @@ function iconForCategory(category: string) {
   return <Folder size={13} aria-hidden="true" />;
 }
 
-function Sidebar({ activeSessionId, onNewSession, wikiPages, onOpenWiki, onSelectSession, sessions }: SidebarProps) {
+function Sidebar({ activeSessionId, archivedPlans, onNewSession, wikiPages, onOpenWiki, onDeleteSession, onDeleteGeneratedPlan, onSelectSession, sessions }: SidebarProps) {
   const [tab, setTab] = useState<"session" | "wiki">("session");
   const [query, setQuery] = useState("");
 
@@ -47,7 +50,7 @@ function Sidebar({ activeSessionId, onNewSession, wikiPages, onOpenWiki, onSelec
           会话
         </button>
         <button className={`tab ${tab === "wiki" ? "active" : ""}`} onClick={() => setTab("wiki")} type="button">
-          Wiki
+          知识库
         </button>
       </div>
 
@@ -60,33 +63,52 @@ function Sidebar({ activeSessionId, onNewSession, wikiPages, onOpenWiki, onSelec
           <div className="sidebar-section">
             <div className="sidebar-section-title">最近会话</div>
             {(sessions.length ? sessions : [{ id: "demo", title: "示例事故会话", created_at: "" }]).map((item, index) => (
-              <button
-                className={`sidebar-item ${item.id === activeSessionId || (!activeSessionId && index === 0) ? "active" : ""}`}
-                type="button"
+              <div
+                className={`sidebar-session-row ${item.id === activeSessionId || (!activeSessionId && index === 0) ? "active" : ""}`}
                 key={item.id}
-                onClick={() => onSelectSession(item)}
               >
-                <FileText size={14} aria-hidden="true" />
-                <span className="truncate">{item.title}</span>
-                {item.id === activeSessionId ? <span className="item-badge">当前</span> : null}
-              </button>
+                <button className="sidebar-item session-main" type="button" onClick={() => onSelectSession(item)}>
+                  <FileText size={14} aria-hidden="true" />
+                  <span className="truncate">{item.title}</span>
+                  {item.id === activeSessionId ? <span className="item-badge">当前</span> : null}
+                </button>
+                {sessions.length ? (
+                  <button
+                    className="session-delete"
+                    type="button"
+                    aria-label={`删除会话 ${item.title}`}
+                    onClick={() => onDeleteSession(item)}
+                  >
+                    <Trash2 size={12} aria-hidden="true" />
+                  </button>
+                ) : null}
+              </div>
             ))}
           </div>
           <div className="sidebar-section">
             <div className="sidebar-section-title">已归档方案</div>
-            {["处置方案_20250312", "处置方案_20250228"].map((item) => (
-              <button className="sidebar-item" type="button" key={item}>
-                <Archive size={14} aria-hidden="true" />
-                <span className="truncate">{item}</span>
-              </button>
-            ))}
+            {archivedPlans.length ? (
+              archivedPlans.map((page) => (
+                <div className="wiki-generated-row" key={page.path}>
+                  <button className="sidebar-item session-main" type="button" onClick={() => onOpenWiki(page)}>
+                    <Archive size={14} aria-hidden="true" />
+                    <span className="truncate">{page.title}</span>
+                  </button>
+                  <button className="session-delete" type="button" aria-label={`删除归档方案 ${page.title}`} onClick={() => onDeleteGeneratedPlan(page)}>
+                    <Trash2 size={12} aria-hidden="true" />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <div className="sidebar-empty">暂无归档方案</div>
+            )}
           </div>
         </div>
       ) : (
         <div className="sidebar-content">
           <label className="sidebar-search">
             <Search size={13} aria-hidden="true" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索 Wiki 页面..." />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索知识库页面..." />
           </label>
 
           {Object.entries(groupedPages).map(([category, pages]) => (
@@ -96,12 +118,24 @@ function Sidebar({ activeSessionId, onNewSession, wikiPages, onOpenWiki, onSelec
                 {categoryLabels[category] ?? category}
                 {category === "cases" ? <span className="tree-count">{pages.length}</span> : null}
               </div>
-              {pages.map((page) => (
-                <button className="wiki-tree-item child" key={page.path} onClick={() => onOpenWiki(page)} type="button">
-                  <FileText size={12} aria-hidden="true" />
-                  <span className="truncate">{page.title}</span>
-                </button>
-              ))}
+              {pages.map((page) =>
+                category === "generated_plans" ? (
+                  <div className="wiki-generated-row" key={page.path}>
+                    <button className="wiki-tree-item child generated-main" onClick={() => onOpenWiki(page)} type="button">
+                      <FileText size={12} aria-hidden="true" />
+                      <span className="truncate">{page.title}</span>
+                    </button>
+                    <button className="session-delete" type="button" aria-label={`删除生成方案 ${page.title}`} onClick={() => onDeleteGeneratedPlan(page)}>
+                      <Trash2 size={12} aria-hidden="true" />
+                    </button>
+                  </div>
+                ) : (
+                  <button className="wiki-tree-item child" key={page.path} onClick={() => onOpenWiki(page)} type="button">
+                    <FileText size={12} aria-hidden="true" />
+                    <span className="truncate">{page.title}</span>
+                  </button>
+                ),
+              )}
             </div>
           ))}
         </div>

@@ -10,10 +10,10 @@ type WikiPaneProps = {
 };
 
 function WikiPane({ page, onBack, onOpenWiki, wikiPages }: WikiPaneProps) {
-  const title = page?.title ?? "Wiki 页面";
+  const title = page?.title ?? "知识库页面";
   const content = stripFrontMatter(
     page?.content ??
-      "## 页面预览\n\n后端 Wiki 服务暂未返回正文。点击左侧 Wiki 页面或 Agent 引用后，会在此处显示对应 Markdown。",
+      "## 页面预览\n\n知识库服务暂未返回正文。点击左侧知识库页面或 Agent 引用后，会在此处显示对应内容。",
   );
 
   return (

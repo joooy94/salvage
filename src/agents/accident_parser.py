@@ -9,6 +9,11 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List
 
+try:
+    from src.llm_client import try_complete_json
+except Exception:
+    try_complete_json = None
+
 
 FIELD_LABELS = {
     "well_type": "井型",
@@ -83,12 +88,23 @@ def accident_parser_node(state: Dict[str, Any]) -> Dict[str, Any]:
         ),
         "additional_info": "",
     }
+    llm_accident = _extract_with_llm(raw, state)
+    if llm_accident:
+        for key in [*FIELD_LABELS.keys(), "additional_info"]:
+            value = llm_accident.get(key)
+            if value not in (None, "", []):
+                accident[key] = value
+        if accident.get("depth"):
+            try:
+                accident["depth"] = float(accident["depth"])
+            except (TypeError, ValueError):
+                accident["depth"] = _extract_depth(raw)
 
     inclination = _first_match([r"(?:井斜|斜度|井斜角)[^0-9]{0,8}([0-9]+(?:\.[0-9]+)?\s*(?:°|度)?)"], raw)
     thread_type = _first_match([r"(?:扣型|接头扣型)[为是:]?([^。；;\n]{2,30})"], raw)
-    if inclination:
+    if inclination and not accident.get("inclination"):
         accident["inclination"] = inclination
-    if thread_type:
+    if thread_type and not accident.get("thread_type"):
         accident["thread_type"] = thread_type
 
     missing = [label for key, label in FIELD_LABELS.items() if not accident.get(key)]
@@ -105,5 +121,34 @@ def accident_parser_node(state: Dict[str, Any]) -> Dict[str, Any]:
     return {
         **state,
         "accident": accident,
-        "parse_report": "\n".join(impact) or "已抽取当前描述中的关键事故信息，未识别信息保持为缺失项。",
+        "parse_report": "\n".join(impact)
+        or ("LLM 已辅助抽取当前描述中的关键事故信息，未识别信息保持为缺失项。" if llm_accident else "已抽取当前描述中的关键事故信息，未识别信息保持为缺失项。"),
     }
+
+
+def _extract_with_llm(raw: str, state: Dict[str, Any]) -> Dict[str, Any] | None:
+    if try_complete_json is None or not raw:
+        return None
+    prompt = f"""请从事故描述中抽取结构化字段，只返回 JSON 对象，不要输出解释。
+
+字段：
+- well_type: 井型，如水平井/大斜度井/直井等
+- depth: 鱼顶深度或事故深度，数字米制；未知用 null
+- fish_type: 落物/落鱼类型
+- fish_description: 落物几何、状态、鱼顶状态等简要描述
+- mud_type: 钻井液/井液类型或密度
+- inclination: 井斜角
+- thread_type: 扣型
+- additional_info: 已采取措施、井下复杂情况、风险线索
+
+事故描述：
+{raw}
+"""
+    data = try_complete_json(
+        prompt,
+        system="你是钻井事故信息抽取助手。不得补造事实；未知字段必须留空或 null。",
+        outputs_dir=state.get("outputs_dir") or "outputs",
+        temperature=0.0,
+        max_tokens=900,
+    )
+    return data if isinstance(data, dict) else None

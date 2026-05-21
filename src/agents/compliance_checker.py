@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 try:
     from src.wiki_loader import search_wiki_snippets
 except Exception:
     search_wiki_snippets = None
+
+try:
+    from src.llm_client import try_complete_text
+except Exception:
+    try_complete_text = None
 
 
 def compliance_checker_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -88,9 +94,62 @@ def compliance_checker_node(state: Dict[str, Any]) -> Dict[str, Any]:
             }
         )
 
+    report = _llm_refine_report("\n".join(report_lines), {**state, "evidence": evidence})
     return {
         **state,
-        "compliance_report": "\n".join(report_lines),
+        "compliance_report": report,
         "confidence_score": confidence,
         "evidence": evidence,
     }
+
+
+def _llm_refine_report(draft: str, state: Dict[str, Any]) -> str:
+    if try_complete_text is None or not _intermediate_refine_enabled():
+        return draft
+    prompt = f"""请审查并改写下面的合规审核报告，输出 Markdown。
+
+硬性要求：
+1. 保留“## 合规审核”标题。
+2. 明确指出缺失信息、无依据参数、水平井适用性等风险。
+3. 不能把未确认信息写成确定事实。
+4. 只能基于给定事故信息、方案草稿和证据，不得新增标准条款编号。
+
+事故信息：
+{state.get("accident", {})}
+
+激进方案：
+{state.get("aggressive_plan", "")}
+
+保守方案：
+{state.get("conservative_plan", "")}
+
+证据摘要：
+{_evidence_context(state.get("evidence", []))}
+
+草稿：
+{draft}
+"""
+    refined = try_complete_text(
+        prompt,
+        system="你是钻井解卡打捞方案合规审核员，输出必须克制、可审核。",
+        outputs_dir=state.get("outputs_dir") or "outputs",
+        temperature=0.1,
+        max_tokens=1500,
+    )
+    if refined and "## 合规审核" in refined:
+        return refined
+    return draft
+
+
+def _intermediate_refine_enabled() -> bool:
+    return os.getenv("LLM_REFINE_INTERMEDIATE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _evidence_context(evidence: list[Dict[str, Any]], limit: int = 12) -> str:
+    lines = []
+    for item in evidence[:limit]:
+        page = item.get("source_page") or ""
+        summary = item.get("summary") or item.get("quote") or ""
+        if page or summary:
+            lines.append(f"- {page}：{summary}")
+    return "\n".join(lines) or "暂无可用证据。"

@@ -1,4 +1,4 @@
-import { AgentPhase, AccidentFields, EvidenceItem, LLMConfig, LLMConfigPayload, SessionSummary, WikiPage } from "../api";
+import { AgentPhase, AccidentFields, DispositionGraph, EvidenceItem, LLMConfig, LLMConfigPayload, PlanVersion, SessionSummary, WikiPage } from "../api";
 import { ChatMessage } from "../App";
 import AccidentPanel from "./AccidentPanel";
 import ChatThread from "./ChatThread";
@@ -13,9 +13,13 @@ type ShellProps = {
   accident: AccidentFields;
   activeWikiPage: WikiPage | null;
   confidence: number;
+  dispositionGraph?: DispositionGraph | null;
   evidence: EvidenceItem[];
   finalPlan: string;
+  planVersions: PlanVersion[];
+  followUpMode: boolean;
   isSolving: boolean;
+  pendingMode: "explain" | "solve" | null;
   llmConfig: LLMConfig | null;
   llmSettingsOpen: boolean;
   messages: ChatMessage[];
@@ -25,10 +29,13 @@ type ShellProps = {
   onOpenWiki: (page: WikiPage | string) => void;
   onOpenLLMSettings: () => void;
   onSaveLLMSettings: (payload: LLMConfigPayload) => Promise<void>;
+  onDeleteSession: (session: SessionSummary) => void;
+  onDeleteGeneratedPlan: (page: WikiPage) => void;
   onSelectSession: (session: SessionSummary) => void;
-  onSubmit: (description: string) => void;
+  onSubmit: (description: string, mode: "explain" | "solve") => void;
   phases: AgentPhase[];
   sessions: SessionSummary[];
+  archivedPlans: WikiPage[];
   activeSessionId?: string;
   statusLabel: string;
   view: "chat" | "wiki";
@@ -39,9 +46,13 @@ function Shell({
   accident,
   activeWikiPage,
   confidence,
+  dispositionGraph,
   evidence,
   finalPlan,
+  planVersions,
+  followUpMode,
   isSolving,
+  pendingMode,
   llmConfig,
   llmSettingsOpen,
   messages,
@@ -51,10 +62,13 @@ function Shell({
   onOpenWiki,
   onOpenLLMSettings,
   onSaveLLMSettings,
+  onDeleteSession,
+  onDeleteGeneratedPlan,
   onSelectSession,
   onSubmit,
   phases,
   sessions,
+  archivedPlans,
   activeSessionId,
   statusLabel,
   view,
@@ -72,10 +86,13 @@ function Shell({
         />
         <Sidebar
           activeSessionId={activeSessionId}
+          archivedPlans={archivedPlans}
           sessions={sessions}
           wikiPages={wikiPages}
           onNewSession={onNewSession}
           onOpenWiki={onOpenWiki}
+          onDeleteSession={onDeleteSession}
+          onDeleteGeneratedPlan={onDeleteGeneratedPlan}
           onSelectSession={onSelectSession}
         />
 
@@ -83,8 +100,17 @@ function Shell({
           <WikiPane page={activeWikiPage} onBack={onBackToChat} onOpenWiki={onOpenWiki} wikiPages={wikiPages} />
         ) : (
           <main className="main">
-            <ChatThread messages={messages} phases={phases} onOpenWiki={onOpenWiki} finalPlan={finalPlan} wikiPages={wikiPages} />
-            <Composer onSubmit={onSubmit} disabled={isSolving} />
+            <ChatThread
+              messages={messages}
+              phases={phases}
+              dispositionGraph={dispositionGraph}
+              onOpenWiki={onOpenWiki}
+              finalPlan={finalPlan}
+              planVersions={planVersions}
+              pendingMode={pendingMode}
+              wikiPages={wikiPages}
+            />
+            <Composer onSubmit={onSubmit} disabled={isSolving} followUpMode={followUpMode} />
           </main>
         )}
 

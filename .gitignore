@@ -1,5 +1,7 @@
 __pycache__/
 *.py[cod]
+.DS_Store
+.logs/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -14,4 +16,3 @@ frontend/dist/
 outputs/
 graph/graph.json
 graph/graph.html
-

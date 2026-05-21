@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict
 
 try:
     from src.wiki_loader import search_wiki_snippets
 except Exception:
     search_wiki_snippets = None
+
+try:
+    from src.llm_client import try_complete_text
+except Exception:
+    try_complete_text = None
 
 
 def conservative_plan_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -52,7 +58,8 @@ def conservative_plan_node(state: Dict[str, Any]) -> Dict[str, Any]:
         for item in search_wiki_snippets(terms, state.get("wiki_dir") or "wiki", categories=("standards/",), limit=8):
             item["source_type"] = "standard"
             evidence.append(item)
-    return {**state, "conservative_plan": "\n".join(lines), "evidence": evidence}
+    plan = _llm_refine_plan("\n".join(lines), {**state, "evidence": evidence})
+    return {**state, "conservative_plan": plan, "evidence": evidence}
 
 
 def _standard_bullets(state: Dict[str, Any], is_horizontal: bool) -> list[str]:
@@ -75,3 +82,49 @@ def _standard_bullets(state: Dict[str, Any], is_horizontal: bool) -> list[str]:
         seen.add(summary)
         bullets.append(f"- {summary}（{page}，第 {page_no} 页）")
     return bullets
+
+
+def _llm_refine_plan(draft: str, state: Dict[str, Any]) -> str:
+    if try_complete_text is None or not _intermediate_refine_enabled():
+        return draft
+    prompt = f"""请基于事故信息和证据，把下面的保守处置方案改写为更清晰的阶梯式 Markdown。
+
+硬性要求：
+1. 保留“## 保守方案”标题。
+2. 按“先复核、再清洁/冲砂、再解卡/打捞、最后升级”的顺序组织。
+3. 明确停止条件和升级条件。
+4. 不得编造现场参数；关键动作必须引用 Wiki 页面名或标注“工程推断”。
+
+事故信息：
+{state.get("accident", {})}
+
+可用证据：
+{_evidence_context(state.get("evidence", []))}
+
+草稿：
+{draft}
+"""
+    refined = try_complete_text(
+        prompt,
+        system="你是钻具落断事故处置专家，输出必须安全、可追溯、避免事故扩大。",
+        outputs_dir=state.get("outputs_dir") or "outputs",
+        temperature=0.2,
+        max_tokens=1800,
+    )
+    if refined and "## 保守方案" in refined:
+        return refined
+    return draft
+
+
+def _intermediate_refine_enabled() -> bool:
+    return os.getenv("LLM_REFINE_INTERMEDIATE", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _evidence_context(evidence: list[Dict[str, Any]], limit: int = 10) -> str:
+    lines = []
+    for item in evidence[:limit]:
+        page = item.get("source_page") or ""
+        summary = item.get("summary") or item.get("quote") or ""
+        if page or summary:
+            lines.append(f"- {page}：{summary}")
+    return "\n".join(lines) or "暂无可用证据。"
